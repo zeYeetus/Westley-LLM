@@ -1,61 +1,81 @@
-# Westley — an instruction-finetuned GPT-2, from scratch
+# Westley — an instruction-following GPT-2, built from scratch
 
-A GPT-2 small (124M) language model implemented from the ground up — token and
-positional embeddings, multi-head self-attention, layer normalization, the full
-transformer stack — then finetuned on instruction–response pairs so it follows
-natural-language tasks. Built following Sebastian Raschka's *Build a Large
-Language Model (From Scratch)*. Named after the protagonist of *The Princess Bride*.
+Westley is a GPT-2 small (124M) language model implemented from the ground up —
+token and positional embeddings, multi-head self-attention, layer normalization,
+and the full transformer stack, all written by hand — then finetuned on
+instruction–response pairs so it follows natural-language tasks. It is built
+following Sebastian Raschka's *Build a Large Language Model (From Scratch)*, and
+named after the protagonist of *The Princess Bride*.
 
-This repository is the public front end and the inference backend for that model.
+This repository contains the model, the inference backend, and a web front end.
+
+## What's here
+
+```
+.
+├── frontend/
+│   └── index.html        Static web UI (Helvetica, animated WebGL gradient,
+│                         liquid-glass panels). No build step.
+├── space/
+│   ├── model.py          The GPT-2 architecture + generation, in pure PyTorch.
+│   ├── app.py            FastAPI server: loads the weights, exposes /generate.
+│   ├── requirements.txt  Backend dependencies.
+│   └── instruction_finetuned_gpt2.pth   Finetuned weights (Git LFS).
+└── README.md
+```
 
 ## Architecture
 
-The model can't run in a browser, so the project is split cleanly:
+The model runs in a Python process; the UI is a static page. They are split
+cleanly, and the page talks to the model over HTTP:
 
 ```
 ┌────────────────────────┐        POST /generate           ┌─────────────────────────┐
-│  Static front end      │  ─────────────────────────────▶ │  FastAPI inference API  │
-│  (GitHub Pages)        │                                 │  (Render web service)   │
+│  Front end (browser)   │  ─────────────────────────────▶ │  FastAPI backend        │
 │  frontend/index.html   │  ◀───────────────────────────── │  space/app.py           │
 └────────────────────────┘        { "response": ... }      └─────────────────────────┘
 ```
 
-- **`frontend/`** — a single self-contained `index.html`: Helvetica type, a
-  phthalo-blue moving WebGL gradient, and liquid-glass panels. No build step;
-  served as-is by GitHub Pages. Calls the backend over HTTP.
-- **`space/`** — a FastAPI app that loads the finetuned weights, rebuilds the
-  GPT-2 small architecture, and serves generation at `POST /generate`.
-- **`render.yaml`** — Render blueprint that builds and runs the backend.
+`space/model.py` implements the network itself — the attention mechanism, the
+feed-forward blocks, layer norm, and the sampling loop — with no ML framework
+beyond PyTorch tensors. The finetuning uses the standard instruction format
+(an instruction, an optional input, and a response).
 
-## Deploying
+## Run it locally
 
-### Backend (Render)
-1. Push this repo to GitHub.
-2. On render.com, create a new **Web Service** from the repo (or use the
-   `render.yaml` blueprint). Root directory `space`, free plan.
-3. Add the weights via Git LFS before pushing (too big for a normal commit):
-   ```bash
-   git lfs install
-   git lfs track "*.pth"
-   cp /path/to/instruction_finetuned_gpt2.pth space/
-   git add .gitattributes space/instruction_finetuned_gpt2.pth
-   git commit -m "Add finetuned weights"
-   git push
-   ```
-4. Render builds and starts it. Note the URL, e.g. `https://westley-model.onrender.com`.
+The front end is hosted live (see below), but the model runs locally. To try the
+full thing end to end:
 
-### Front end (GitHub Pages)
-1. In `frontend/index.html`, set `API_URL` to your Render URL from above.
-2. Push. Settings → Pages → Source = **GitHub Actions**. The workflow publishes
-   `frontend/` on every push.
-3. Live at `https://your-username.github.io/your-repo/`.
+**1. Get the code and the weights.** The weights are stored with Git LFS, so
+install that first, then clone:
+```bash
+git lfs install
+git clone https://github.com/zeYeetus/instruction-gpt2.git
+cd instruction-gpt2
+```
 
-## Notes
-- Render's free tier sleeps when idle; the first request after idle takes ~30–60s
-  to wake the service (the front end shows a "waking the model" message). Later
-  requests are faster.
-- Generation uses the same helper functions the model was finetuned with, so
-  behaviour matches the training notebook.
+**2. Start the backend:**
+```bash
+cd space
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+Wait for `Application startup complete`.
+
+**3. Open the front end.** Open `frontend/index.html` in a browser, type an
+instruction (e.g. *"Rewrite this sentence in the passive voice."* with input
+*"The committee approved the proposal."*), and hit Generate. The page calls your
+local backend and shows the model's response.
+
+## Live front end
+
+The web UI is deployed on GitHub Pages:
+**https://zeyeetus.github.io/instruction-gpt2/**
+
+The Generate button there is wired to a local backend, so it's interactive only
+when you're running `space/app.py` on your own machine (per the steps above).
+The page explains this when the backend isn't reachable.
 
 ## License
-MIT.
+
+MIT. Model code adapted from Sebastian Raschka's LLMs-from-scratch (Apache 2.0).

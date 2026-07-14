@@ -256,7 +256,7 @@
   <div class="wrap">
     <header>
       <div class="wordmark">westley</div>
-      <div class="meta">GPT-2 medium · 124M</div>
+      <div class="meta">GPT-2 medium · 355M</div>
     </header>
 
     <section class="hero">
@@ -316,10 +316,12 @@
 
 <script>
 /* ============================================================
-   CONFIG — set this to your Render backend URL after deploy.
-   e.g. "https://westley-model.onrender.com"
+   CONFIG — where the model backend runs.
+   By default this points at a local backend (run space/app.py on
+   your machine). If you deploy the backend somewhere public, put
+   its URL here instead.
    ============================================================ */
-const API_URL = "REPLACE_WITH_YOUR_RENDER_URL";
+const API_URL = "http://localhost:8000";
 
 /* ---------- controls ---------- */
 const tokensEl = document.getElementById("tokens");
@@ -341,10 +343,6 @@ async function generate() {
     statusEl.textContent = "Enter an instruction first.";
     return;
   }
-  if (API_URL.startsWith("REPLACE")) {
-    statusEl.textContent = "Set API_URL in index.html to your Render backend.";
-    return;
-  }
 
   const temperature = tempEl.value / 10;
   const topK = temperature > 0 ? 40 : 1;
@@ -353,12 +351,6 @@ async function generate() {
   outputEl.classList.remove("placeholder");
   outputEl.textContent = "";
   statusEl.textContent = "Generating…";
-
-  // The free backend sleeps when idle; the first request may take
-  // up to a minute to wake it. Let the visitor know after a moment.
-  const wakeTimer = setTimeout(() => {
-    statusEl.textContent = "Waking the model… first request can take ~40s.";
-  }, 4000);
 
   try {
     const res = await fetch(`${API_URL}/generate`, {
@@ -372,17 +364,15 @@ async function generate() {
         top_k: topK
       })
     });
-    clearTimeout(wakeTimer);
 
     if (!res.ok) throw new Error("bad status " + res.status);
     const data = await res.json();
     outputEl.textContent = data.response || "No response returned.";
     statusEl.textContent = "Done.";
   } catch (err) {
-    clearTimeout(wakeTimer);
     outputEl.classList.add("placeholder");
-    outputEl.textContent = "Couldn't reach the model. It may be waking up — wait a moment and try again.";
-    statusEl.textContent = "Request failed.";
+    outputEl.textContent = "This live demo runs the model on a local backend, which isn't running right now. The model, training, and full code are in the linked repository — you can run it yourself in a few commands.";
+    statusEl.textContent = "Backend offline.";
   } finally {
     runBtn.disabled = false;
   }

@@ -26,6 +26,8 @@ BASE_CONFIG = {
     "n_heads": 12,
 }
 
+import gc
+
 WEIGHTS_PATH = "instruction_finetuned_gpt2.pth"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,6 +37,8 @@ tokenizer = tiktoken.get_encoding("gpt2")
 model = GPTModel(BASE_CONFIG)
 state = torch.load(WEIGHTS_PATH, map_location=device, weights_only=True)
 model.load_state_dict(state)
+del state
+gc.collect()
 model.to(device)
 model.eval()
 
